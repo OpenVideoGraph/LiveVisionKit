@@ -28,6 +28,8 @@ target_include_directories(
     PUBLIC 
         ${CMAKE_CURRENT_SOURCE_DIR} 
         ${OpenCV_INCLUDE_DIRS}
+        ${OBS_BUILD_PATH}${OBS_REL_INCLUDE_PATH}
+        ${OBS_BUILD_PATH}${OBS_REL_INCLUDE_PATH_UI}
 )    
 
 # Link all dependencies

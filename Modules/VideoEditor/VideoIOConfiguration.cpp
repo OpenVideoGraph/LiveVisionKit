@@ -438,7 +438,22 @@ namespace clt
                 config_parser.add_variable(
                     {".levels", ".l"},
                     "Used to specify the number of deblocking passes to perform.",
-                    &config.detection_levels
+                    &config.noise_level
+                );
+                config_parser.add_variable(
+                    { ".enable_processing", ".e" },
+                    "Enable framerate processing.",
+                    &config.enable_processing
+                );
+                config_parser.add_variable(
+                    { ".overlay_stats", ".p" },
+                    "Shows Framerate Stats in Video.",
+                    &config.overlay_video
+                );
+                config_parser.add_variable(
+                    { ".refresh_rate", ".r" },
+                    "Used to specify the max refresh rate of target display.",
+                    &config.refresh_rate
                 );
             }
         );
