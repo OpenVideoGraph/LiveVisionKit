@@ -19,6 +19,10 @@
 
 #include "Utility/Drawing.hpp"
 
+#include <opencv2/core/ocl.hpp>
+
+#include <chrono>
+
 namespace lvk
 {
 
@@ -36,6 +40,12 @@ namespace lvk
 	double duplicate_frame_count = 0.;
 	uint64 frame_count = 0;
 	double frametime = 0.;
+	uint64 framerate_count = 0;
+	auto start = std::chrono::steady_clock::now();
+	int64 elapsed_seconds = 0;
+	double average = 0.0;
+	int count = 0;
+
     void DeblockingFilter::filter(
         Frame&& input,
         Frame& output,
@@ -84,7 +94,8 @@ namespace lvk
 		{
 			// hardcoded timebase
 			// todo: get from video settings
-			frametime = (1000. / 120.) * (1 + duplicate_frame_count);
+			frametime = (1000. / 60.) * (1 + duplicate_frame_count);
+			framerate_count++;
 			frame_count++;
 			duplicate_frame_count = 0;
 		}
@@ -92,11 +103,21 @@ namespace lvk
 		//cv::multiply(difference, difference, difference, 5);
 		//cv::imshow("diff and noise", difference);
 
+		// there's a better way to do this but I have no idea how
+		auto end = std::chrono::steady_clock::now();
+		elapsed_seconds = duration_cast<std::chrono::seconds>(end - start).count();
+		if (elapsed_seconds >= 1)
+		{
+			average = static_cast<double>(framerate_count) / elapsed_seconds;
+			start = end;
+			framerate_count = 0;
+		}
+
 		if (debug)
 		{
 			cv::putText(
 				input.data,
-				cv::format("frametime %06.3lf duplicate %06.3lf frame count %llu", frametime, duplicate_frame_count, frame_count),
+				cv::format("frametime %06.3lf duplicate %06.3lf frames %04llu number %llu average %06.3lf", frametime, duplicate_frame_count, frame_count, framerate_count, average),
 				cv::Point(10, 80),
 				cv::FONT_HERSHEY_SIMPLEX,
 				1.0,
