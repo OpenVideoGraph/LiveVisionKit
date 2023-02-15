@@ -90,11 +90,19 @@ namespace lvk
 		cv::extractChannel(current_frame, current_frame, 0);
 		cv::absdiff(previous_frame, current_frame, difference);
 
-		double noise_filter = 0.;
+		double noise_filter = (double)m_Settings.detection_levels;
 		if (noise_filter > 0)
 		{
 			// filter for capture card with video noise
 			cv::threshold(difference, difference, (double)noise_filter, 255, cv::THRESH_BINARY);
+			cv::putText(
+				input.data,
+				"threshold active!",
+				cv::Point(10, 120),
+				cv::FONT_HERSHEY_SIMPLEX,
+				1.0,
+				cv::Scalar(149, 43, 21),
+				2.0);
 		}
 		if (cv::countNonZero(difference) == 0)
 			duplicate_frame_count++;
@@ -120,18 +128,19 @@ namespace lvk
 			start = end;
 			framerate_count = 0;
 		}
-
+		
 		if (debug)
 		{
 			cv::putText(
 				input.data,
-				cv::format("frametime %06.3lf duplicate %06.3lf frames %04llu number %llu average %06.3lf", frametime, duplicate_frame_count, frame_count, framerate_count, average),
+				cv::format("frametime %06.3lf duplicate %06.3lf frames %04llu number %llu average %06.3lf noise %06.3lf", frametime, duplicate_frame_count, frame_count, framerate_count, average, noise_filter),
 				cv::Point(10, 80),
 				cv::FONT_HERSHEY_SIMPLEX,
 				1.0,
 				cv::Scalar(149, 43, 21),
 				2.0);
 		}
+		
 
 		current_frame.copyTo(previous_frame);
 		if (debug)
@@ -148,7 +157,7 @@ namespace lvk
 		LVK_ASSERT(settings.block_size > 0);
 		LVK_ASSERT(settings.filter_size >= 3);
 		LVK_ASSERT(settings.filter_size % 2 == 1);
-		LVK_ASSERT(settings.detection_levels > 0);
+		//LVK_ASSERT(settings.detection_levels > 0);
 		LVK_ASSERT(settings.filter_scaling > 1.0f);
 
 		m_Settings = settings;

@@ -28,8 +28,8 @@ namespace lvk
 //---------------------------------------------------------------------------------------------------------------------
 
 	constexpr auto PROP_STRENGTH = "STRENGTH";
-	constexpr auto STRENGTH_MAX = 5;
-	constexpr auto STRENGTH_MIN = 1;
+	constexpr auto STRENGTH_MAX = 10;
+	constexpr auto STRENGTH_MIN = 0;
 	constexpr auto STRENGTH_DEFAULT = 3;
 
 	constexpr auto PROP_TEST_MODE = "TEST_MODE";
@@ -82,7 +82,7 @@ namespace lvk
 		m_TestMode = obs_data_get_bool(settings, PROP_TEST_MODE);
 
 		m_Filter.reconfigure([&](DeblockingFilterSettings& settings) {
-			settings.detection_levels = std::max<uint32_t>(strength, 1);
+			settings.detection_levels = strength;
 		});
 	}
 
