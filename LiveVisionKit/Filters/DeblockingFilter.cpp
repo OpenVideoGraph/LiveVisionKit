@@ -61,6 +61,14 @@ namespace lvk
 			timer.start();
 		}
 
+		// if user is changing source resolution, make it match
+		if (input.data.rows != previous_frame.rows)
+		{
+			// just to make sure, run the comparison next frame
+			input.data.copyTo(previous_frame);
+			return;
+		}
+
 		if (input.data.empty())
 			return;
 
