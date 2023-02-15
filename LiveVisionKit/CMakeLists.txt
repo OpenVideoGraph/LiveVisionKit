@@ -3,6 +3,13 @@
 project(lvk-core LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 
+set(OBS_REL_INCLUDE_PATH_UI "/../UI/obs-frontend-api/")
+set(OBS_REL_INCLUDE_PATH "/../libobs/")
+if(WIN32)
+    set(OBS_REL_LIB_PATH "/install/bin/64bit/obs-frontend-api.lib")
+else()
+    set(OBS_REL_LIB_PATH "/install/bin/obs-frontend-api")
+endif()
 add_library(${PROJECT_NAME})
 set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX ${LVK_DEBUG_POSTFIX})
 set_property(TARGET ${PROJECT_NAME} PROPERTY PROJECT_LABEL "LiveVisionKit")
@@ -23,9 +30,12 @@ target_include_directories(
     PUBLIC 
         ${CMAKE_CURRENT_SOURCE_DIR} 
         ${OpenCV_INCLUDE_DIRS}
+        ${OBS_BUILD_PATH}${OBS_REL_INCLUDE_PATH}
+        ${OBS_BUILD_PATH}${OBS_REL_INCLUDE_PATH_UI}
 )    
 target_link_libraries(
-    ${PROJECT_NAME} 
+    ${PROJECT_NAME}
+    ${OBS_BUILD_PATH}${OBS_REL_LIB_PATH}
     ${OpenCV_LIBS}
     Threads::Threads
 )

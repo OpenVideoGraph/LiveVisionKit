@@ -29,12 +29,23 @@ namespace lvk
 //---------------------------------------------------------------------------------------------------------------------
 
 	constexpr auto PROP_STRENGTH = "STRENGTH";
-	constexpr auto PROP_STRENGTH_MAX = 5;
-	constexpr auto PROP_STRENGTH_MIN = 1;
+	constexpr auto PROP_STRENGTH_MAX = 10;
+	constexpr auto PROP_STRENGTH_MIN = 0;
 	constexpr auto PROP_STRENGTH_DEFAULT = 3;
+
+	constexpr auto PROP_REFRESH_RATE = "REFRESH_RATE";
+	constexpr auto REFRESH_RATE_MAX = 1000;
+	constexpr auto REFRESH_RATE_MIN = 60;
+	constexpr auto REFRESH_RATE_DEFAULT = 60;
 
 	constexpr auto PROP_TEST_MODE = "TEST_MODE";
 	constexpr auto PROP_TEST_MODE_DEFAULT = false;
+
+	constexpr auto PROP_PROCESSING_MODE = "PROCESSING_MODE";
+	constexpr auto PROCESSING_MODE_DEFAULT = false;
+
+	constexpr auto PROP_OVERLAY_MODE = "OVERLAY_MODE";
+	constexpr auto OVERLAY_MODE_DEFAULT = false;
 
 	constexpr auto TIMING_THRESHOLD_MS = 3.0;
 	constexpr auto TIMING_SAMPLES = 30;
@@ -55,17 +66,27 @@ namespace lvk
 			1
 		);
 
-        // Runtime Controls
-        obs_properties_t* controls = obs_properties_create();
-        obs_properties_add_group(
-            properties,
-            "CONTROL_GROUP",
-            L("f.controls-group"),
-            obs_group_type::OBS_GROUP_NORMAL,
-            controls
-        );
+		obs_properties_add_int(
+			properties,
+			PROP_REFRESH_RATE,
+			L("adb.refresh_rate"),
+			REFRESH_RATE_MIN,
+			REFRESH_RATE_MAX,
+			60
+		);
 
-        // Test Mode Toggle
+		obs_properties_add_bool(
+			properties,
+			PROP_PROCESSING_MODE,
+			L("adb.processing_mode")
+		);
+
+		obs_properties_add_bool(
+			properties,
+			PROP_OVERLAY_MODE,
+			L("adb.overlay")
+		);
+
 		obs_properties_add_bool(
             controls,
 			PROP_TEST_MODE,
@@ -82,6 +103,9 @@ namespace lvk
 		LVK_ASSERT(settings != nullptr);
 
 		obs_data_set_default_int(settings, PROP_STRENGTH, PROP_STRENGTH_DEFAULT);
+		obs_data_set_default_int(settings, PROP_REFRESH_RATE, REFRESH_RATE_DEFAULT);
+		obs_data_set_default_bool(settings, PROP_PROCESSING_MODE, PROCESSING_MODE_DEFAULT);
+		obs_data_set_default_bool(settings, PROP_OVERLAY_MODE, OVERLAY_MODE_DEFAULT);
 		obs_data_set_default_bool(settings, PROP_TEST_MODE, PROP_TEST_MODE_DEFAULT);
 	}
 
@@ -92,10 +116,16 @@ namespace lvk
 		LVK_ASSERT(settings != nullptr);
 
 		const auto strength = obs_data_get_int(settings, PROP_STRENGTH);
+		const auto rate = obs_data_get_int(settings, PROP_REFRESH_RATE);
 		m_TestMode = obs_data_get_bool(settings, PROP_TEST_MODE);
+		m_EnableProcessing = obs_data_get_bool(settings, PROP_PROCESSING_MODE);
+		const auto overlay_bool = obs_data_get_bool(settings, PROP_OVERLAY_MODE);
 
 		m_Filter.reconfigure([&](DeblockingFilterSettings& settings) {
-			settings.detection_levels = std::max<uint32_t>(strength, 1);
+			settings.noise_level = strength;
+			settings.enable_processing = m_EnableProcessing;
+			settings.overlay_video = overlay_bool;
+			settings.refresh_rate = rate;
 		});
 	}
 
@@ -115,14 +145,14 @@ namespace lvk
 
 	void ADBFilter::filter(FrameBuffer& frame)
 	{
-        LVK_PROFILE;
-
-		if(m_TestMode)
+		LVK_PROFILE;
+		if (m_EnableProcessing)
 		{
-			m_Filter.process(frame, frame, true);
-			draw_debug_hud(frame.data);
+			if (m_TestMode)
+				m_Filter.process(frame, frame, true);
+			else
+				m_Filter.process(frame, frame, false);
 		}
-		else m_Filter.process(frame, frame);
 	}
 
 //---------------------------------------------------------------------------------------------------------------------
