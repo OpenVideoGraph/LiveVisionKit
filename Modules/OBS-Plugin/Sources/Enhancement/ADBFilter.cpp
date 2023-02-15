@@ -107,7 +107,7 @@ namespace lvk
 			m_Filter.process(frame, frame, true);
 			draw_debug_hud(frame.data);
 		}
-		else m_Filter.process(frame, frame);
+		// else m_Filter.process(frame, frame);
 	}
 
 //---------------------------------------------------------------------------------------------------------------------
