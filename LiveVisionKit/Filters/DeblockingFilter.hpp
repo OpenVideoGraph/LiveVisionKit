@@ -20,15 +20,19 @@
 #include "VideoFilter.hpp"
 #include "Utility/Configurable.hpp"
 
+#include <numeric>
+
+#include <fstream>
+
 namespace lvk
 {
 
 	struct DeblockingFilterSettings
 	{
-		uint32_t detection_levels = 3; // Must be greater than 0
-		uint32_t block_size = 16; // Must be greater than 0
-		uint32_t filter_size = 5; // Must be odd
-		float filter_scaling = 4; // Smaller is stronger (1/x)
+		bool overlay_video = false;
+		bool enable_processing = false;
+		size_t refresh_rate = 60; // Must be greater than 0
+		uint32_t noise_level = 0; // Must be greater than 0
 	};
 
 	class DeblockingFilter final : public VideoFilter, public Configurable<DeblockingFilterSettings>
@@ -41,22 +45,24 @@ namespace lvk
 
 	private:
 
+		cv::UMat previous_frame;
+		uint64_t frame_count = 0;
+		uint64_t video_frame_count = 0;
+		size_t old_fps_list_size = 0;
+		size_t new_fps_list_size = 0;
+		double duplicate_frame_count = 0.;
+		double framerate = 0.;
+		double frametime = 0.;
+		bool stats_file_opened = false;
+		std::ofstream frame_stats;
+
+        // NOTE: Supports in-place operation.
         void filter(
             Frame&& input,
             Frame& output,
             Stopwatch& timer,
             const bool debug
         ) override;
-
-		cv::UMat m_SmoothFrame{cv::UMatUsageFlags::USAGE_ALLOCATE_DEVICE_MEMORY};
-		cv::UMat m_DetectionFrame{cv::UMatUsageFlags::USAGE_ALLOCATE_DEVICE_MEMORY};
-		cv::UMat m_ReferenceFrame{cv::UMatUsageFlags::USAGE_ALLOCATE_DEVICE_MEMORY};
-		cv::UMat m_BlockMask{cv::UMatUsageFlags::USAGE_ALLOCATE_DEVICE_MEMORY};
-		cv::UMat m_KeepBlendMap{cv::UMatUsageFlags::USAGE_ALLOCATE_DEVICE_MEMORY};
-		cv::UMat m_DeblockBlendMap{cv::UMatUsageFlags::USAGE_ALLOCATE_DEVICE_MEMORY};
-		cv::UMat m_BlockGrid{cv::UMatUsageFlags::USAGE_ALLOCATE_DEVICE_MEMORY};
-		cv::UMat m_DeblockBuffer{cv::UMatUsageFlags::USAGE_ALLOCATE_DEVICE_MEMORY}; 
-		cv::UMat m_FloatBuffer{cv::UMatUsageFlags::USAGE_ALLOCATE_DEVICE_MEMORY};
 	};
 
 }
