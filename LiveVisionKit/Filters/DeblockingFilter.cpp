@@ -134,6 +134,8 @@ namespace lvk
 		{
 			int tear_top, tear_center, tear_bottom = 0;
 			{
+				// 30fps only, 60fps is different.
+				// write another path or try to make this path work for both?
 				cv::multiply(difference, difference, difference, 10);
 				std::vector<std::vector<cv::Point>> contours;
 				findContours(difference, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
