@@ -45,6 +45,7 @@ namespace lvk
 	int64 elapsed_seconds = 0;
 	double average = 0.0;
 	int count = 0;
+	double timebase = 1000. / 60.;
 
     void DeblockingFilter::filter(
         Frame&& input,
@@ -54,7 +55,6 @@ namespace lvk
     )
 	{
         LVK_ASSERT(!input.is_empty());
-
         if (debug)
 		{ 
 			cv::ocl::finish();
@@ -83,12 +83,13 @@ namespace lvk
 		if (input.data.empty() || previous_frame.empty())
 			return;
 
-		cv::UMat current_frame, difference;
+		cv::UMat current_frame, difference, g_previous_frame, g_current_frame;
 		input.data.copyTo(current_frame);
 
-		cv::extractChannel(previous_frame, previous_frame, 0);
-		cv::extractChannel(current_frame, current_frame, 0);
-		cv::absdiff(previous_frame, current_frame, difference);
+		cv::extractChannel(previous_frame, g_previous_frame, 0);
+		cv::extractChannel(current_frame, g_current_frame, 0);
+		cv::absdiff(g_previous_frame, g_current_frame, difference);
+		// previous_frame.copyTo(input.data); // not the way to do it, we should never have to show the previous frame in no vsync mode
 
 		double noise_filter = (double)m_Settings.detection_levels;
 		if (noise_filter > 0)
@@ -105,20 +106,22 @@ namespace lvk
 				2.0);
 		}
 		if (cv::countNonZero(difference) == 0)
+		{
 			duplicate_frame_count++;
+			frametime = timebase * (1 + duplicate_frame_count);
+		}
 		else
 		{
 			// hardcoded timebase
 			// todo: get from video settings
-			frametime = (1000. / 60.) * (1 + duplicate_frame_count);
+			frametime = timebase * (1 + duplicate_frame_count);
 			framerate_count++;
 			frame_count++;
 			duplicate_frame_count = 0;
 		}
 
-		//cv::multiply(difference, difference, difference, 5);
 		//cv::imshow("diff and noise", difference);
-
+		//difference.copyTo(input.data);
 		// there's a better way to do this but I have no idea how
 		auto end = std::chrono::steady_clock::now();
 		elapsed_seconds = duration_cast<std::chrono::seconds>(end - start).count();
@@ -131,6 +134,21 @@ namespace lvk
 		
 		if (debug)
 		{
+			/*
+			// this lags one frame behind
+			cv::multiply(difference, difference, difference, 10);
+			std::vector<std::vector<cv::Point>> contours;
+			findContours(difference, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+			int tear_pos = 0;
+			for (const auto& contour : contours) {
+				cv::Rect rect = boundingRect(contour);
+				if (rect.width > 10 && rect.height > 10) {
+					tear_pos = rect.y + rect.height;
+				}
+			}
+			// draw line is slow
+			cv::line(input.data, cv::Point(0, tear_pos), cv::Point(input.data.cols, tear_pos), cv::Scalar(0, 0, 255), 2);
+			*/
 			cv::putText(
 				input.data,
 				cv::format("frametime %06.3lf duplicate %06.3lf frames %04llu number %llu average %06.3lf noise %06.3lf", frametime, duplicate_frame_count, frame_count, framerate_count, average, noise_filter),
@@ -140,7 +158,6 @@ namespace lvk
 				cv::Scalar(149, 43, 21),
 				2.0);
 		}
-		
 
 		current_frame.copyTo(previous_frame);
 		if (debug)
