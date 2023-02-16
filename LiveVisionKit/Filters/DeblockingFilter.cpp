@@ -89,8 +89,6 @@ namespace lvk
 		cv::extractChannel(previous_frame, g_previous_frame, 0);
 		cv::extractChannel(current_frame, g_current_frame, 0);
 		cv::absdiff(g_previous_frame, g_current_frame, difference);
-		// previous_frame.copyTo(input.data); // not the way to do it, we should never have to show the previous frame in no vsync mode
-
 		double noise_filter = (double)m_Settings.detection_levels;
 		if (noise_filter > 0)
 		{
@@ -134,29 +132,36 @@ namespace lvk
 		
 		if (debug)
 		{
-			/*
-			// this lags one frame behind
-			cv::multiply(difference, difference, difference, 10);
-			std::vector<std::vector<cv::Point>> contours;
-			findContours(difference, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-			int tear_pos = 0;
-			for (const auto& contour : contours) {
-				cv::Rect rect = boundingRect(contour);
-				if (rect.width > 10 && rect.height > 10) {
-					tear_pos = rect.y + rect.height;
+			int tear_top, tear_center, tear_bottom = 0;
+			{
+				cv::multiply(difference, difference, difference, 10);
+				std::vector<std::vector<cv::Point>> contours;
+				findContours(difference, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+				for (const auto& contour : contours)
+				{
+					cv::Rect rect = boundingRect(contour);
+					if (rect.width > 10 && rect.height > 10)
+					{
+						tear_center = rect.y + rect.height / 2;
+						tear_top = tear_center - rect.height / 2;
+						tear_bottom = tear_center + rect.height / 2;
+						tear_center = tear_bottom - tear_top;
+					}
 				}
 			}
 			// draw line is slow
-			cv::line(input.data, cv::Point(0, tear_pos), cv::Point(input.data.cols, tear_pos), cv::Scalar(0, 0, 255), 2);
-			*/
+			if (tear_top > 2 && tear_center > 2 && tear_bottom > 2)
+				cv::line(input.data, cv::Point(0, tear_top), cv::Point(input.data.cols, tear_top), cv::Scalar(0, 0, 255), 2);
+			//cv::line(input.data, cv::Point(0, tear_bottom), cv::Point(input.data.cols, tear_bottom), cv::Scalar(255, 0, 0), 2);
 			cv::putText(
 				input.data,
-				cv::format("frametime %06.3lf duplicate %06.3lf frames %04llu number %llu average %06.3lf noise %06.3lf", frametime, duplicate_frame_count, frame_count, framerate_count, average, noise_filter),
+				cv::format("ft %06.3lf dupe %06.3lf frames %04llu/%llu/%06.3lf top %i prev %i bottom %i", frametime, duplicate_frame_count, frame_count, framerate_count, average, tear_top, tear_center, tear_bottom),
 				cv::Point(10, 80),
 				cv::FONT_HERSHEY_SIMPLEX,
 				1.0,
 				cv::Scalar(149, 43, 21),
 				2.0);
+			
 		}
 
 		current_frame.copyTo(previous_frame);
