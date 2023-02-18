@@ -82,17 +82,16 @@ namespace lvk
 		// if somehow the frame is empty, do nothing
 		if (input.data.empty() || previous_frame.empty())
 			return;
-
+		int tear_count = 0; // multiple for future fcat
 		cv::UMat current_frame, difference, g_previous_frame, g_current_frame;
 		input.data.copyTo(current_frame);
-
 		cv::extractChannel(previous_frame, g_previous_frame, 0);
 		cv::extractChannel(current_frame, g_current_frame, 0);
 		cv::absdiff(g_previous_frame, g_current_frame, difference);
 		double noise_filter = (double)m_Settings.detection_levels;
 		if (noise_filter > 0)
 		{
-			// filter for capture card with video noise
+			// filter for devices with video noise
 			cv::threshold(difference, difference, (double)noise_filter, 255, cv::THRESH_BINARY);
 			cv::putText(
 				input.data,
@@ -132,10 +131,14 @@ namespace lvk
 		
 		if (debug)
 		{
-			int tear_top, tear_center, tear_bottom = 0;
+			int tear_top = 0;
+			int tear_center = 0;
+			int tear_bottom = 0;
+			if (tear_count > 0)
 			{
 				// 30fps only, 60fps is different.
 				// write another path or try to make this path work for both?
+				// also try to get processing time below 5ms
 				cv::multiply(difference, difference, difference, 10);
 				std::vector<std::vector<cv::Point>> contours;
 				findContours(difference, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
