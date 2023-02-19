@@ -89,10 +89,13 @@ namespace lvk
 		cv::extractChannel(current_frame, g_current_frame, 0);
 		cv::absdiff(g_previous_frame, g_current_frame, difference);
 		double noise_filter = (double)m_Settings.detection_levels;
+		bool b_noise_filter = false;
+		bool b_duplicate_frame = false;
 		if (noise_filter > 0)
 		{
 			// filter for devices with video noise
 			cv::threshold(difference, difference, (double)noise_filter, 255, cv::THRESH_BINARY);
+			/*
 			cv::putText(
 				input.data,
 				"threshold active!",
@@ -101,11 +104,14 @@ namespace lvk
 				1.0,
 				cv::Scalar(149, 43, 21),
 				2.0);
+			*/
+			b_noise_filter = true;
 		}
 		if (cv::countNonZero(difference) == 0)
 		{
 			duplicate_frame_count++;
 			frametime = timebase * (1 + duplicate_frame_count);
+			b_duplicate_frame = true;
 		}
 		else
 		{
@@ -114,6 +120,7 @@ namespace lvk
 			frametime = timebase * (1 + duplicate_frame_count);
 			framerate_count++;
 			frame_count++;
+			b_duplicate_frame = false;
 			duplicate_frame_count = 0;
 		}
 
@@ -131,6 +138,7 @@ namespace lvk
 		
 		if (debug)
 		{
+			/*
 			int tear_top = 0;
 			int tear_center = 0;
 			int tear_bottom = 0;
@@ -139,6 +147,7 @@ namespace lvk
 				// 30fps only, 60fps is different.
 				// write another path or try to make this path work for both?
 				// also try to get processing time below 5ms
+				// FIXME: make these testcases pass: https://drive.google.com/drive/folders/1TtAu5kIpfV8cJ8KVTAN0GtWx1esSO6mW
 				cv::multiply(difference, difference, difference, 10);
 				std::vector<std::vector<cv::Point>> contours;
 				findContours(difference, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
@@ -158,9 +167,11 @@ namespace lvk
 			if (tear_top > 2 && tear_center > 2 && tear_bottom > 2)
 				cv::line(input.data, cv::Point(0, tear_top), cv::Point(input.data.cols, tear_top), cv::Scalar(0, 0, 255), 2);
 			//cv::line(input.data, cv::Point(0, tear_bottom), cv::Point(input.data.cols, tear_bottom), cv::Scalar(255, 0, 0), 2);
+			*/
+			// TODO: move this to `QDialog` because `cv::putText` impact performance!!
 			cv::putText(
 				input.data,
-				cv::format("ft %06.3lf dupe %06.3lf frames %04llu/%llu/%06.3lf top %i prev %i bottom %i", frametime, duplicate_frame_count, frame_count, framerate_count, average, tear_top, tear_center, tear_bottom),
+				cv::format("ft %06.3lf dupe %06.3lf/%s frames %04llu/%llu/%06.3lf noise: %s", frametime, duplicate_frame_count, b_duplicate_frame ? "true" : "false", frame_count, framerate_count, average, b_noise_filter ? "true" : "false"),
 				cv::Point(10, 80),
 				cv::FONT_HERSHEY_SIMPLEX,
 				1.0,
