@@ -25,6 +25,8 @@
 
 #include <obs-frontend-api.h>
 
+#include <fstream>
+
 namespace lvk
 {
 
@@ -48,6 +50,8 @@ namespace lvk
 	double average = 0.0;
 	int count = 0;
 	double timebase = 1000. / 60.;
+	bool stats_file_opened = false;
+	std::ofstream frame_stats;
 
     void DeblockingFilter::filter(
         const Frame& input,
@@ -173,6 +177,8 @@ namespace lvk
 			//cv::line(input.data, cv::Point(0, tear_bottom), cv::Point(input.data.cols, tear_bottom), cv::Scalar(255, 0, 0), 2);
 			*/
 			// TODO: move this to `QDialog` because `cv::putText` impact performance!!
+			
+			/*
 			cv::putText(
 				input.data,
 				cv::format("ft %06.3lf dupe %06.3lf/%s frames %04llu/%llu/%06.3lf noise: %s rec: %s", frametime, duplicate_frame_count, b_duplicate_frame ? "true" : "false", frame_count, framerate_count, average, b_noise_filter ? "true" : "false", b_is_recording ? "true" : "false"),
@@ -181,7 +187,27 @@ namespace lvk
 				1.0,
 				cv::Scalar(149, 43, 21),
 				2.0);
-			
+			*/
+
+			if (b_is_recording && !stats_file_opened)
+			{
+				frame_stats.open("C:\\test\\test.csv");
+				std::string data = "uFrames,dFrametime,dFrameRate,bDupeFrame,dDupeFrame,dTearHeight,dTearPos\n";
+				frame_stats << data;
+				stats_file_opened = true;
+				frame_count = 0;
+			}
+			if (b_is_recording && stats_file_opened)
+			{
+				//std::string data = cv::format("ft %06.3lf dupe %06.3lf/%s frames %04llu/%llu/%06.3lf noise: %s rec: %s", frametime, duplicate_frame_count, b_duplicate_frame ? "true" : "false", frame_count, framerate_count, average, b_noise_filter ? "true" : "false", b_is_recording ? "true" : "false");
+				std::string data = cv::format("%llu,%lf,%lf,%s,%lf,%lf,%lf\n", frame_count, frametime, average, b_duplicate_frame ? "true" : "false", duplicate_frame_count, 0., 0.);
+				frame_stats << data;
+			}
+			if (!b_is_recording && stats_file_opened)
+			{
+				frame_stats.close();
+				stats_file_opened = false;
+			}
 		}
 
 		current_frame.copyTo(previous_frame);
