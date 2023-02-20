@@ -23,6 +23,8 @@
 
 #include <chrono>
 
+#include <obs-frontend-api.h>
+
 namespace lvk
 {
 
@@ -91,6 +93,7 @@ namespace lvk
 		double noise_filter = (double)m_Settings.detection_levels;
 		bool b_noise_filter = false;
 		bool b_duplicate_frame = false;
+		bool b_is_recording = obs_frontend_recording_active();
 		if (noise_filter > 0)
 		{
 			// filter for devices with video noise
@@ -107,6 +110,7 @@ namespace lvk
 			*/
 			b_noise_filter = true;
 		}
+		cv::multiply(difference, difference, difference, 10);
 		if (cv::countNonZero(difference) == 0)
 		{
 			duplicate_frame_count++;
@@ -171,7 +175,7 @@ namespace lvk
 			// TODO: move this to `QDialog` because `cv::putText` impact performance!!
 			cv::putText(
 				input.data,
-				cv::format("ft %06.3lf dupe %06.3lf/%s frames %04llu/%llu/%06.3lf noise: %s", frametime, duplicate_frame_count, b_duplicate_frame ? "true" : "false", frame_count, framerate_count, average, b_noise_filter ? "true" : "false"),
+				cv::format("ft %06.3lf dupe %06.3lf/%s frames %04llu/%llu/%06.3lf noise: %s rec: %s", frametime, duplicate_frame_count, b_duplicate_frame ? "true" : "false", frame_count, framerate_count, average, b_noise_filter ? "true" : "false", b_is_recording ? "true" : "false"),
 				cv::Point(10, 80),
 				cv::FONT_HERSHEY_SIMPLEX,
 				1.0,
