@@ -32,8 +32,19 @@ namespace lvk
 	constexpr auto STRENGTH_MIN = 0;
 	constexpr auto STRENGTH_DEFAULT = 3;
 
+	constexpr auto PROP_REFRESH_RATE = "REFRESH_RATE";
+	constexpr auto REFRESH_RATE_MAX = 1000;
+	constexpr auto REFRESH_RATE_MIN = 60;
+	constexpr auto REFRESH_RATE_DEFAULT = 60;
+
 	constexpr auto PROP_TEST_MODE = "TEST_MODE";
 	constexpr auto TEST_MODE_DEFAULT = false;
+
+	constexpr auto PROP_PROCESSING_MODE = "PROCESSING_MODE";
+	constexpr auto PROCESSING_MODE_DEFAULT = false;
+
+	constexpr auto PROP_OVERLAY_MODE = "OVERLAY_MODE";
+	constexpr auto OVERLAY_MODE_DEFAULT = false;
 
 	constexpr auto TIMING_THRESHOLD_MS = 3.0;
 	constexpr auto TIMING_SAMPLES = 30;
@@ -53,6 +64,27 @@ namespace lvk
 			1
 		);
 
+		obs_properties_add_int(
+			properties,
+			PROP_REFRESH_RATE,
+			L("adb.refresh_rate"),
+			REFRESH_RATE_MIN,
+			REFRESH_RATE_MAX,
+			60
+		);
+
+		obs_properties_add_bool(
+			properties,
+			PROP_PROCESSING_MODE,
+			L("adb.processing_mode")
+		);
+
+		obs_properties_add_bool(
+			properties,
+			PROP_OVERLAY_MODE,
+			L("adb.overlay")
+		);
+
 		obs_properties_add_bool(
 			properties,
 			PROP_TEST_MODE,
@@ -69,6 +101,9 @@ namespace lvk
 		LVK_ASSERT(settings != nullptr);
 
 		obs_data_set_default_int(settings, PROP_STRENGTH, STRENGTH_DEFAULT);
+		obs_data_set_default_int(settings, PROP_REFRESH_RATE, REFRESH_RATE_DEFAULT);
+		obs_data_set_default_bool(settings, PROP_PROCESSING_MODE, PROCESSING_MODE_DEFAULT);
+		obs_data_set_default_bool(settings, PROP_OVERLAY_MODE, OVERLAY_MODE_DEFAULT);
 		obs_data_set_default_bool(settings, PROP_TEST_MODE, TEST_MODE_DEFAULT);
 	}
 
@@ -79,10 +114,16 @@ namespace lvk
 		LVK_ASSERT(settings != nullptr);
 
 		const auto strength = obs_data_get_int(settings, PROP_STRENGTH);
+		const auto rate = obs_data_get_int(settings, PROP_REFRESH_RATE);
 		m_TestMode = obs_data_get_bool(settings, PROP_TEST_MODE);
+		m_EnableProcessing = obs_data_get_bool(settings, PROP_PROCESSING_MODE);
+		const auto overlay_bool = obs_data_get_bool(settings, PROP_OVERLAY_MODE);
 
 		m_Filter.reconfigure([&](DeblockingFilterSettings& settings) {
-			settings.detection_levels = strength;
+			settings.noise_level = strength;
+			settings.enable_processing = m_EnableProcessing;
+			settings.overlay_video = overlay_bool;
+			settings.refresh_rate = rate;
 		});
 	}
 
@@ -102,27 +143,13 @@ namespace lvk
 
 	void ADBFilter::filter(FrameBuffer& frame)
 	{
-		if(m_TestMode)
+		if (m_EnableProcessing)
 		{
-			m_Filter.process(frame, frame, true);
-			draw_debug_hud(frame.data);
+			if (m_TestMode)
+				m_Filter.process(frame, frame, true);
+			else
+				m_Filter.process(frame, frame, false);
 		}
-		// else m_Filter.process(frame, frame);
-	}
-
-//---------------------------------------------------------------------------------------------------------------------
-
-	void ADBFilter::draw_debug_hud(cv::UMat& frame)
-	{
-		const auto frame_time_ms = m_Filter.timings().average().milliseconds();
-		const auto deviation_ms = m_Filter.timings().deviation().milliseconds();
-
-		draw::text(
-			frame,
-            cv::format("%.2fms (%.2fms)", frame_time_ms, deviation_ms),
-			cv::Point(5, 40),
-			frame_time_ms < TIMING_THRESHOLD_MS ? draw::YUV_GREEN : draw::YUV_RED
-		);
 	}
 
 //---------------------------------------------------------------------------------------------------------------------

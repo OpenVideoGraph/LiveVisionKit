@@ -21,11 +21,10 @@
 
 #include <opencv2/core/ocl.hpp>
 
-#include <chrono>
-
 #include <obs-frontend-api.h>
 
-#include <fstream>
+#define str(s) #s
+#define xstr(s) str(s)
 
 namespace lvk
 {
@@ -40,18 +39,7 @@ namespace lvk
 
 //---------------------------------------------------------------------------------------------------------------------
 
-	cv::UMat previous_frame;
-	double duplicate_frame_count = 0.;
-	uint64 frame_count = 0;
-	double frametime = 0.;
-	uint64 framerate_count = 0;
-	auto start = std::chrono::steady_clock::now();
-	int64 elapsed_seconds = 0;
-	double average = 0.0;
-	int count = 0;
-	double timebase = 1000. / 60.;
-	bool stats_file_opened = false;
-	std::ofstream frame_stats;
+	std::vector<uint32_t> fps_list(60, 0);
 
     void DeblockingFilter::filter(
         const Frame& input,
@@ -61,11 +49,6 @@ namespace lvk
     )
 	{
         LVK_ASSERT(!input.is_empty());
-        if (debug)
-		{ 
-			cv::ocl::finish();
-			timer.start();
-		}
 
 		// if user is changing source resolution, make it match
 		if (input.data.rows != previous_frame.rows)
@@ -94,24 +77,32 @@ namespace lvk
 		cv::extractChannel(previous_frame, g_previous_frame, 0);
 		cv::extractChannel(current_frame, g_current_frame, 0);
 		cv::absdiff(g_previous_frame, g_current_frame, difference);
-		double noise_filter = (double)m_Settings.detection_levels;
+		double timebase = 1000. / (double)m_Settings.refresh_rate;
+		double noise_filter = (double)m_Settings.noise_level;
 		bool b_noise_filter = false;
 		bool b_duplicate_frame = false;
+		double tear_pos = 0.;
+		double tear_height = 0.;
 		bool b_is_recording = obs_frontend_recording_active();
-		if (noise_filter > 0)
+		old_fps_list_size = fps_list.size();
+		new_fps_list_size = m_Settings.refresh_rate;
+		if (old_fps_list_size != new_fps_list_size)
 		{
-			// filter for devices with video noise
-			cv::threshold(difference, difference, (double)noise_filter, 255, cv::THRESH_BINARY);
-			/*
 			cv::putText(
 				input.data,
-				"threshold active!",
+				cv::format("fps_list size mismatch (%lli/%lli)!!", old_fps_list_size, new_fps_list_size),
 				cv::Point(10, 120),
 				cv::FONT_HERSHEY_SIMPLEX,
 				1.0,
 				cv::Scalar(149, 43, 21),
 				2.0);
-			*/
+			fps_list.resize(new_fps_list_size);
+			return;
+		}
+		if (noise_filter > 0)
+		{
+			// filter for devices with video noise
+			cv::threshold(difference, difference, (double)noise_filter, 255, cv::THRESH_BINARY);
 			b_noise_filter = true;
 		}
 		cv::multiply(difference, difference, difference, 10);
@@ -119,6 +110,8 @@ namespace lvk
 		{
 			duplicate_frame_count++;
 			frametime = timebase * (1 + duplicate_frame_count);
+			fps_list.erase(fps_list.begin());
+			fps_list.push_back(0);
 			b_duplicate_frame = true;
 		}
 		else
@@ -126,26 +119,15 @@ namespace lvk
 			// hardcoded timebase
 			// todo: get from video settings
 			frametime = timebase * (1 + duplicate_frame_count);
-			framerate_count++;
 			frame_count++;
+			fps_list.erase(fps_list.begin());
+			fps_list.push_back(1);
 			b_duplicate_frame = false;
 			duplicate_frame_count = 0;
 		}
 
-		//cv::imshow("diff and noise", difference);
-		//difference.copyTo(input.data);
-		// there's a better way to do this but I have no idea how
-		auto end = std::chrono::steady_clock::now();
-		elapsed_seconds = duration_cast<std::chrono::seconds>(end - start).count();
-		if (elapsed_seconds >= 1)
-		{
-			average = static_cast<double>(framerate_count) / elapsed_seconds;
-			start = end;
-			framerate_count = 0;
-		}
-		
-		if (debug)
-		{
+		framerate = std::accumulate(fps_list.begin(), fps_list.end(), 0.0);
+
 			/*
 			int tear_top = 0;
 			int tear_center = 0;
@@ -176,58 +158,83 @@ namespace lvk
 				cv::line(input.data, cv::Point(0, tear_top), cv::Point(input.data.cols, tear_top), cv::Scalar(0, 0, 255), 2);
 			//cv::line(input.data, cv::Point(0, tear_bottom), cv::Point(input.data.cols, tear_bottom), cv::Scalar(255, 0, 0), 2);
 			*/
-			// TODO: move this to `QDialog` because `cv::putText` impact performance!!
-			
-			/*
+
+		if (debug)
+		{
 			cv::putText(
 				input.data,
-				cv::format("ft %06.3lf dupe %06.3lf/%s frames %04llu/%llu/%06.3lf noise: %s rec: %s", frametime, duplicate_frame_count, b_duplicate_frame ? "true" : "false", frame_count, framerate_count, average, b_noise_filter ? "true" : "false", b_is_recording ? "true" : "false"),
+				cv::format("%04llu,%04llu,%04llf,%02i,%04llf,%04llf,%lli,%lli",
+					video_frame_count,
+					frame_count,
+					frametime,
+					b_duplicate_frame,
+					duplicate_frame_count,
+					framerate,
+					old_fps_list_size,
+					new_fps_list_size),
 				cv::Point(10, 80),
 				cv::FONT_HERSHEY_SIMPLEX,
 				1.0,
 				cv::Scalar(149, 43, 21),
 				2.0);
-			*/
-
-			if (b_is_recording && !stats_file_opened)
-			{
-				frame_stats.open("C:\\test\\test.csv");
-				std::string data = "uFrames,dFrametime,dFrameRate,bDupeFrame,dDupeFrame,dTearHeight,dTearPos\n";
-				frame_stats << data;
-				stats_file_opened = true;
-				frame_count = 0;
-			}
-			if (b_is_recording && stats_file_opened)
-			{
-				//std::string data = cv::format("ft %06.3lf dupe %06.3lf/%s frames %04llu/%llu/%06.3lf noise: %s rec: %s", frametime, duplicate_frame_count, b_duplicate_frame ? "true" : "false", frame_count, framerate_count, average, b_noise_filter ? "true" : "false", b_is_recording ? "true" : "false");
-				std::string data = cv::format("%llu,%lf,%lf,%s,%lf,%lf,%lf\n", frame_count, frametime, average, b_duplicate_frame ? "true" : "false", duplicate_frame_count, 0., 0.);
-				frame_stats << data;
-			}
-			if (!b_is_recording && stats_file_opened)
-			{
-				frame_stats.close();
-				stats_file_opened = false;
-			}
 		}
-
-		current_frame.copyTo(previous_frame);
-		if (debug)
+		else if (m_Settings.overlay_video)
 		{
-			cv::ocl::finish();
-			timer.stop();
+			cv::putText(
+				input.data,
+				cv::format("FPS: %.2llf Frametime: %.2llf",
+					framerate,
+					frametime),
+				cv::Point(10, 80),
+				cv::FONT_HERSHEY_SIMPLEX,
+				1.0,
+				cv::Scalar(149, 43, 21),
+				2.0);
 		}
+
+		if (b_is_recording && !stats_file_opened)
+		{
+			video_frame_count = 0;
+			frame_count = 0;
+			frame_stats.open("C:\\test\\test.csv");
+			std::string data =
+				str(video_frame_count) ","
+				str(frame_count) ","
+				str(frametime) ","
+				str(b_duplicate_frame) ","
+				str(duplicate_frame_count) ","
+				str(tear_pos) ","
+				str(tear_height) "\n";
+			frame_stats << data;
+			stats_file_opened = true;
+			frame_count = 0;
+		}
+		if (b_is_recording && stats_file_opened)
+		{
+			std::string data =
+				cv::format("%llu,%llu,%llf,%i,%llf,%llf,%llf\n",
+				video_frame_count,
+				frame_count,
+				frametime,
+				b_duplicate_frame,
+				duplicate_frame_count,
+				tear_pos,
+				tear_height);
+			frame_stats << data;
+		}
+		if (!b_is_recording && stats_file_opened)
+		{
+			frame_stats.close();
+			stats_file_opened = false;
+		}
+		video_frame_count++;
+		current_frame.copyTo(previous_frame);
 	}
 
 //---------------------------------------------------------------------------------------------------------------------
 
 	void lvk::DeblockingFilter::configure(const DeblockingFilterSettings& settings)
 	{
-		LVK_ASSERT(settings.block_size > 0);
-		LVK_ASSERT(settings.filter_size >= 3);
-		LVK_ASSERT(settings.filter_size % 2 == 1);
-		//LVK_ASSERT(settings.detection_levels > 0);
-		LVK_ASSERT(settings.filter_scaling > 1.0f);
-
 		m_Settings = settings;
 	}
 
