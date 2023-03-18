@@ -42,14 +42,13 @@ namespace lvk
 
         void filter(FrameBuffer& frame) override;
 
-		void draw_debug_hud(cv::UMat& frame);
-
 	private:
 
 		obs_source_t* m_Context = nullptr;
 
 		DeblockingFilter m_Filter;
 		bool m_TestMode = false;
+		bool m_EnableProcessing = false;
 	};
 
 }
