@@ -89,7 +89,7 @@ namespace lvk
 		if (old_fps_list_size != new_fps_list_size)
 		{
 			cv::putText(
-				input.data,
+				output.data,
 				cv::format("fps_list size mismatch (%lli/%lli)!!", old_fps_list_size, new_fps_list_size),
 				cv::Point(10, 120),
 				cv::FONT_HERSHEY_SIMPLEX,
@@ -162,7 +162,7 @@ namespace lvk
 		if (debug)
 		{
 			cv::putText(
-				input.data,
+				output.data,
 				cv::format("%04llu,%04llu,%04llf,%02i,%04llf,%04llf,%lli,%lli",
 					video_frame_count,
 					frame_count,
@@ -181,7 +181,7 @@ namespace lvk
 		else if (m_Settings.overlay_video)
 		{
 			cv::putText(
-				input.data,
+				output.data,
 				cv::format("FPS: %.2llf Frametime: %.2llf",
 					framerate,
 					frametime),
