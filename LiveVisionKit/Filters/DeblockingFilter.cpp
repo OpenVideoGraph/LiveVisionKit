@@ -81,8 +81,8 @@ namespace lvk
 		double noise_filter = (double)m_Settings.noise_level;
 		bool b_noise_filter = false;
 		bool b_duplicate_frame = false;
-		double tear_pos = 0.;
-		double tear_height = 0.;
+		uint32_t tear_pos = 0;
+		uint32_t tear_height = 0;
 		bool b_is_recording = obs_frontend_recording_active();
 		old_fps_list_size = fps_list.size();
 		new_fps_list_size = m_Settings.refresh_rate;
@@ -200,7 +200,6 @@ namespace lvk
 			std::string data =
 				str(video_frame_count) ","
 				str(frame_count) ","
-				str(frametime) ","
 				str(b_duplicate_frame) ","
 				str(duplicate_frame_count) ","
 				str(tear_pos) ","
@@ -212,10 +211,9 @@ namespace lvk
 		if (b_is_recording && stats_file_opened)
 		{
 			std::string data =
-				cv::format("%llu,%llu,%llf,%i,%llf,%llf,%llf\n",
+				cv::format("%llu,%llu,%u,%.3llf,%u,%u\n",
 				video_frame_count,
 				frame_count,
-				frametime,
 				b_duplicate_frame,
 				duplicate_frame_count,
 				tear_pos,
