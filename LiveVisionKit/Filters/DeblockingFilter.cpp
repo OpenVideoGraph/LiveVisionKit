@@ -200,7 +200,6 @@ namespace lvk
 			std::string data =
 				str(video_frame_count) ","
 				str(frame_count) ","
-				str(frametime) ","
 				str(b_duplicate_frame) ","
 				str(duplicate_frame_count) ","
 				str(tear_pos) ","
@@ -212,10 +211,9 @@ namespace lvk
 		if (b_is_recording && stats_file_opened)
 		{
 			std::string data =
-				cv::format("%llu,%llu,%llf,%i,%llf,%llf,%llf\n",
+				cv::format("%llu,%llu,%u,%.3llf,%.3llf,%.3llf\n",
 				video_frame_count,
 				frame_count,
-				frametime,
 				b_duplicate_frame,
 				duplicate_frame_count,
 				tear_pos,
