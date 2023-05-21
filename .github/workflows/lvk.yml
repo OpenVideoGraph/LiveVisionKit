@@ -133,7 +133,7 @@ jobs:
         working-directory: 'lvk'
         run: |
           mkdir build && cd build && mkdir dist
-          cmake -D OPENCV_BUILD_PATH="${{ env.OpenCV_DIR }}" -D OBS_BUILD_PATH="${{ env.obs_dir }}\build64" -D OBS_PLUGIN_AUTO_INSTALL=ON -D OBS_PLUGIN_AUTO_INSTALL_PATHS=$pwd\dist ..
+          cmake -D OPENCV_BUILD_PATH="${{ env.OpenCV_DIR }}" -D OBS_BUILD_PATH="${{ env.obs_dir }}\build64" -D OBS_PLUGIN_AUTO_INSTALL=ON -D OBS_PLUGIN_AUTO_INSTALL_PATHS=$pwd\dist .. -D BUILD_VIDEO_PROCESSOR_CLT=OFF
           msbuild /m /p:Configuration="RelWithDebInfo" "$pwd\LiveVisionKit.sln"
           msbuild /m /p:Configuration="RelWithDebInfo" "$pwd\INSTALL.vcxproj"
           cd dist
