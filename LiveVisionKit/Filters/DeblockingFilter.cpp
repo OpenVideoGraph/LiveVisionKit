@@ -212,6 +212,8 @@ namespace lvk
 			bfree(record_path);
 			video_frame_count = 0;
 			frame_count = 0;
+			duplicate_frame_count = 0.;
+			b_duplicate_frame = false;
 			frame_stats.open(file_path);
 			/*
 			std::string data =
