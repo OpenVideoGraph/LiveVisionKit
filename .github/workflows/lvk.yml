@@ -6,50 +6,23 @@ on:
   pull_request:
     paths-ignore: ['**.md']
 
+concurrency:
+  group: ${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
 env:
   CACHE_REVISION: '006'
-  CEF_BUILD_VERSION_MAC: '5060'
-  CEF_HASH_MAC_X86_64: '88b950aa0bfc001061c35e7f1f3fefba856a6afb35e38b2b7b42ddd8dd239182'
-  CEF_HASH_MAC_ARM64: '98679b92eea6ea9959ac5aa54f46ca60681d8a86c768c35f496dbdd409bf0642'
-  CEF_BUILD_VERSION_LINUX: '5060'
   CEF_BUILD_VERSION_WIN: '5060'
-  QT_VERSION_MAC: '6.4.1'
-  QT_HASH_MAC_X86_64: '602239df1f8e9a870082f12e216a881175210e3ee9400101d128f15dc5dc17d7'
-  QT_HASH_MAC_ARM64: '9fafa04fbe7a972628443aab4968fe319810f707d9f3766e6a32196bae1e0c91'
-  QT_HASH_MAC_UNIVERSAL: '6173e95742c83f90d5637d3483a68fb22c7313580bcbc0686fb6fd2e804c36c2'
   QT_VERSION_WIN: '6.3.1'
-  DEPS_VERSION_MAC: '2023-03-04'
-  DEPS_HASH_MAC_X86_64: 'd7b61b54629f4372bc42285d2575b72ec2b73fce1c0a5b64bf1fa76c2b312ef5'
-  DEPS_HASH_MAC_ARM64: 'eb1c76c64f77ea864cf10a441b9589259444967c66ec0bd270d1b58e148df95c'
   DEPS_VERSION_WIN: '2023-03-04'
-  VLC_VERSION_MAC: '3.0.8'
-  VLC_HASH_MAC: 'e0149ef4a20a19b9ecd87309c2d27787ee3f47dfd47c6639644bc1f6fd95bdf6'
   VLC_VERSION_WIN: '3.0.0-git'
   OPENCV_VERSION: '4.7.0'
+  OBS_TARGET: '28.0'
 
 jobs:
-  config:
-    name: '01 - Configure Build Jobs'
-    runs-on: [ubuntu-22.04]
-    outputs:
-      create_artifacts: ${{ steps.config.outputs.create_artifacts }}
-      cache_date: ${{ steps.config.outputs.cache_date }}
-    steps:
-      - name: 'Configure Build Jobs'
-        id: config
-        run: |
-          if [[ "${{ github.event_name == 'pull_request' }}" == "true" ]]; then
-            echo "create_artifacts=${{ contains(github.event.pull_request.labels.*.name, 'Seeking Testers') }}" >> $GITHUB_OUTPUT
-          else
-            echo 'create_artifacts=true' >> $GITHUB_OUTPUT
-          fi
-          echo "cache_date=$(date +"%Y-%m-%d")" >> $GITHUB_OUTPUT
-
   windows_build:
-    name: '02 - Windows'
+    name: 'Windows Build'
     runs-on: [windows-2022]
-    needs: [config]
-    if: always()
     strategy:
       matrix:
         arch: [x64]
@@ -62,10 +35,10 @@ jobs:
       run:
         working-directory: 'obs-studio'
     steps:
-      - name: 'Checkout'
+      - name: 'Checkout OBS ${{ env.OBS_TARGET }}'
         uses: actions/checkout@v3
         with:
-          ref: 'release/29.0'
+          ref: 'release/${{ env.OBS_TARGET }}'
           repository: 'obsproject/obs-studio'
           submodules: 'recursive'
           path: 'obs-studio'
@@ -135,10 +108,10 @@ jobs:
         run: |
           mkdir build && cd build && mkdir dist
           cmake -D OPENCV_BUILD_PATH="${{ env.OpenCV_DIR }}" -D OBS_BUILD_PATH="${{ env.obs_dir }}\build64" -D OBS_PLUGIN_AUTO_INSTALL=ON -D OBS_PLUGIN_AUTO_INSTALL_PATHS=$pwd\dist .. -D BUILD_VIDEO_PROCESSOR_CLT=OFF
-          msbuild /m /p:Configuration="RelWithDebInfo" "$pwd\LiveVisionKit.sln"
-          msbuild /m /p:Configuration="RelWithDebInfo" "$pwd\INSTALL.vcxproj"
+          msbuild /m /p:Configuration="RelWithDebInfo" "$pwd\LiveVisionKit.sln" || exit 1
+          msbuild /m /p:Configuration="RelWithDebInfo" "$pwd\INSTALL.vcxproj" || exit 1
           cd dist
-          7z a ../lvk.7z -m0=LZMA2 -mx9
+          7z a ../lvk.7z -m0=LZMA2 -mx9 -mtm
 
       - name: 'Upload build artifact'
         uses: actions/upload-artifact@v3
