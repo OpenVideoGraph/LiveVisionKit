@@ -88,7 +88,7 @@ namespace lvk
 		);
 
 		obs_properties_add_bool(
-            controls,
+			properties,
 			PROP_TEST_MODE,
 			L("f.testmode")
 		);
@@ -156,21 +156,6 @@ namespace lvk
 	}
 
 //---------------------------------------------------------------------------------------------------------------------
-
-	void ADBFilter::draw_debug_hud(cv::UMat& frame)
-	{
-        LVK_PROFILE;
-
-		const auto frame_time_ms = m_Filter.timings().average().milliseconds();
-		const auto deviation_ms = m_Filter.timings().deviation().milliseconds();
-
-		draw_text(
-			frame,
-            cv::format("%.2fms (%.2fms)", frame_time_ms, deviation_ms),
-			cv::Point(5, 40),
-			frame_time_ms < TIMING_THRESHOLD_MS ? yuv::GREEN : yuv::RED
-		);
-	}
 
 //---------------------------------------------------------------------------------------------------------------------
 
