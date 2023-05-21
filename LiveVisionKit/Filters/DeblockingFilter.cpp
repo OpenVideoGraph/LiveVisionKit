@@ -23,7 +23,9 @@
 
 #include <obs-frontend-api.h>
 
-#define str(s) #s
+#include <util/bmem.h>
+
+#define _str(s) #s
 #define xstr(s) str(s)
 
 namespace lvk
@@ -206,16 +208,29 @@ namespace lvk
 
 		if (b_is_recording && !stats_file_opened)
 		{
+			char* record_path = obs_frontend_get_current_record_output_path();
+			char file_path[260] = { 0 };
+			_snprintf_s(file_path, sizeof(file_path), "%s\\%s.csv", record_path, getCurrentDateTime().c_str());
+			bfree(record_path);
 			video_frame_count = 0;
 			frame_count = 0;
-			frame_stats.open("C:\\test\\test.csv");
+			duplicate_frame_count = 0.;
+			b_duplicate_frame = false;
+			frame_stats.open(file_path);
+			/*
 			std::string data =
-				str(video_frame_count) ","
-				str(frame_count) ","
-				str(b_duplicate_frame) ","
-				str(duplicate_frame_count) ","
-				str(tear_pos) ","
-				str(tear_height) "\n";
+				_str(video_frame_count) ","
+				_str(frame_count) ","
+				_str(b_duplicate_frame) ","
+				_str(duplicate_frame_count) ","
+				_str(tear_pos) ","
+				_str(tear_height) "\n";
+			*/
+			std::string data =
+				_str(video_frame_count) ","
+				_str(frame_count) ","
+				_str(b_duplicate_frame) ","
+				_str(duplicate_frame_count) "\n";
 			frame_stats << data;
 			stats_file_opened = true;
 			frame_count = 0;
@@ -223,7 +238,8 @@ namespace lvk
 		if (b_is_recording && stats_file_opened)
 		{
 			std::string data =
-				cv::format("%llu,%llu,%u,%.3llf,%u,%u\n",
+				//cv::format("%llu,%llu,%u,%.3llf,%u,%u\n",
+				cv::format("%llu,%llu,%u,%.3llf\n",
 				video_frame_count,
 				frame_count,
 				b_duplicate_frame,
