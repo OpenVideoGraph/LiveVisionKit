@@ -5,7 +5,6 @@ on:
     paths-ignore: ['**.md']
   pull_request:
     paths-ignore: ['**.md']
-  workflow_dispatch:
 
 env:
   CACHE_REVISION: '006'
@@ -49,6 +48,8 @@ jobs:
   windows_build:
     name: '02 - Windows'
     runs-on: [windows-2022]
+    permissions:
+      contents: write
     needs: [config]
     if: always()
     strategy:
@@ -64,7 +65,7 @@ jobs:
         working-directory: 'obs-studio'
     steps:
       - name: 'Checkout'
-        uses: actions/checkout@v3
+        uses: actions/checkout@main
         with:
           ref: 'release/29.0'
           repository: 'obsproject/obs-studio'
@@ -73,7 +74,7 @@ jobs:
           fetch-depth: 0
 
       - name: 'Checkout LVK'
-        uses: actions/checkout@v3
+        uses: actions/checkout@main
         with:
           submodules: 'recursive'
           path: 'lvk'
@@ -83,7 +84,7 @@ jobs:
 
       - name: 'Restore VLC dependency from cache'
         id: vlc-cache
-        uses: actions/cache@v3
+        uses: actions/cache@main
         env:
           CACHE_NAME: 'vlc-cache'
         with:
@@ -92,7 +93,7 @@ jobs:
 
       - name: 'Restore Chromium Embedded Framework from cache'
         id: cef-cache
-        uses: actions/cache@v3
+        uses: actions/cache@main
         env:
           CACHE_NAME: 'cef-cache'
         with:
@@ -142,7 +143,13 @@ jobs:
           7z a ../lvk.7z -m0=LZMA2 -mx9
 
       - name: 'Upload build artifact'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@main
         with:
           name: 'LiveVisionKit'
           path: 'lvk/build/lvk.7z'
+
+      - name: Create Release
+        working-directory: lvk/build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "0.0.${{ GITHUB.RUN_NUMBER }}" lvk.7z --target ${{ GITHUB.SHA }} -t "0.0.${{ GITHUB.RUN_NUMBER }}"
